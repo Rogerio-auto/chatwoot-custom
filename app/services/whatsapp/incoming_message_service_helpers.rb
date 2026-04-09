@@ -63,6 +63,24 @@ module Whatsapp::IncomingMessageServiceHelpers
     @in_reply_to_external_id = message['context']&.[]('id')
   end
 
+  def extract_referral(message)
+    referral = message[:referral] || message['referral']
+    return {} if referral.blank?
+
+    {
+      referral: {
+        source_url: referral[:source_url] || referral['source_url'],
+        source_id: referral[:source_id] || referral['source_id'],
+        source_type: referral[:source_type] || referral['source_type'],
+        headline: referral[:headline] || referral['headline'],
+        body: referral[:body] || referral['body'],
+        media_type: referral[:media_type] || referral['media_type'],
+        media_url: referral[:media_url] || referral['media_url'],
+        ctwa_clid: referral[:ctwa_clid] || referral['ctwa_clid']
+      }.compact
+    }
+  end
+
   def find_message_by_source_id(source_id)
     return unless source_id
 

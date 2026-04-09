@@ -109,6 +109,7 @@ class Messages::Facebook::MessageBuilder < Messages::Messenger::MessageBuilder
       in_reply_to_external_id: response.in_reply_to_external_id
     }
     content_attributes[:external_echo] = true if @outgoing_echo
+    content_attributes.merge!(extract_referral_from_response)
 
     {
       account_id: conversation.account_id,
@@ -127,6 +128,22 @@ class Messages::Facebook::MessageBuilder < Messages::Messenger::MessageBuilder
       name: "#{result['first_name'] || 'John'} #{result['last_name'] || 'Doe'}",
       account_id: @inbox.account_id,
       avatar_url: result['profile_pic']
+    }
+  end
+
+  def extract_referral_from_response
+    ref = response.referral
+    return {} if ref.blank?
+
+    {
+      referral: {
+        source: ref['source'],
+        type: ref['type'],
+        ref: ref['ref'],
+        ad_id: ref['ad_id'],
+        ads_context_data: ref['ads_context_data'],
+        product_id: ref['product_id']
+      }.compact
     }
   end
 

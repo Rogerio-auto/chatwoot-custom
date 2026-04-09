@@ -177,6 +177,7 @@ class Whatsapp::IncomingMessageBaseService
   def create_message(message, source_id: nil)
     content_attrs = outgoing_echo ? { external_echo: true } : {}
     content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
+    content_attrs.merge!(extract_referral(message))
 
     @message = @conversation.messages.build(
       content: message_content(message),
