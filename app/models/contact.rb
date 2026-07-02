@@ -143,6 +143,16 @@ class Contact < ApplicationRecord
       .where.missing(:conversations)
   }
 
+  # Escopo de visibilidade por inbox: administradores veem todos os contatos da conta;
+  # agentes veem apenas contatos vinculados (via contact_inboxes) às inboxes das quais
+  # participam (User#assigned_inboxes). Evita que a aba Contatos exponha os contatos de
+  # todos os vendedores entre si.
+  scope :visible_to, lambda { |user|
+    next all if user.administrator?
+
+    where(id: ContactInbox.where(inbox_id: user.assigned_inboxes.select(:id)).select(:contact_id))
+  }
+
   def get_source_id(inbox_id)
     contact_inboxes.find_by!(inbox_id: inbox_id).source_id
   end
