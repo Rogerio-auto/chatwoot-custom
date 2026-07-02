@@ -163,6 +163,63 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response_body['payload'].pluck('email')).to include(contact_with_label1.email, contact_with_label2.email)
       end
     end
+
+    context 'when contacts are scoped by inbox membership' do
+      let(:admin) { create(:user, account: account, role: :administrator) }
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:inbox) { create(:inbox, account: account) }
+      let(:other_inbox) { create(:inbox, account: account) }
+
+      # contato do agente (vinculado à inbox que ele participa)
+      let!(:own_contact) { create(:contact, :with_email, account: account) }
+      # contato de outro vendedor (inbox que o agente NÃO participa)
+      let!(:other_contact) { create(:contact, :with_email, account: account) }
+
+      before do
+        create(:inbox_member, user: agent, inbox: inbox)
+        create(:contact_inbox, contact: own_contact, inbox: inbox)
+        create(:contact_inbox, contact: other_contact, inbox: other_inbox)
+      end
+
+      it 'returns only contacts of the inboxes the agent belongs to' do
+        get "/api/v1/accounts/#{account.id}/contacts",
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        emails = response.parsed_body['payload'].pluck('email')
+        expect(emails).to include(own_contact.email)
+        expect(emails).not_to include(other_contact.email)
+      end
+
+      it 'returns all account contacts for administrators' do
+        get "/api/v1/accounts/#{account.id}/contacts",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        emails = response.parsed_body['payload'].pluck('email')
+        expect(emails).to include(own_contact.email, other_contact.email)
+      end
+
+      it 'does not leak other inbox contacts through search' do
+        get "/api/v1/accounts/#{account.id}/contacts/search",
+            params: { q: other_contact.email },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].pluck('email')).not_to include(other_contact.email)
+      end
+
+      it 'blocks direct access to a contact outside the agent inboxes' do
+        get "/api/v1/accounts/#{account.id}/contacts/#{other_contact.id}",
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:not_found)
+      end
+    end
   end
 
   describe 'POST /api/v1/accounts/{account.id}/contacts/import' do
