@@ -91,9 +91,19 @@ class Messages::Facebook::MessageBuilder < Messages::Messenger::MessageBuilder
 
   def fallback_params(attachment)
     {
-      fallback_title: attachment['title'],
-      external_url: attachment['url']
+      fallback_title: attachment['title'] || attachment.dig('payload', 'title'),
+      external_url: attachment['url'] || attachment.dig('payload', 'url')
     }
+  end
+
+  # Facebook shared posts point to page URLs, not downloadable media URLs.
+  # Both `share` and `post` attachment types carry a page URL rather than a media file,
+  # so map them to `fallback` (which keeps the title/link without attempting a download).
+  # Keep this Facebook-only so Messenger/Instagram share attachments still use the parent media handling.
+  def normalize_file_type(type)
+    return :fallback if [:share, :post].include?(type.to_sym)
+
+    super
   end
 
   def conversation_params
@@ -109,7 +119,6 @@ class Messages::Facebook::MessageBuilder < Messages::Messenger::MessageBuilder
       in_reply_to_external_id: response.in_reply_to_external_id
     }
     content_attributes[:external_echo] = true if @outgoing_echo
-    content_attributes.merge!(extract_referral_from_response)
 
     {
       account_id: conversation.account_id,
@@ -128,22 +137,6 @@ class Messages::Facebook::MessageBuilder < Messages::Messenger::MessageBuilder
       name: "#{result['first_name'] || 'John'} #{result['last_name'] || 'Doe'}",
       account_id: @inbox.account_id,
       avatar_url: result['profile_pic']
-    }
-  end
-
-  def extract_referral_from_response
-    ref = response.referral
-    return {} if ref.blank?
-
-    {
-      referral: {
-        source: ref['source'],
-        type: ref['type'],
-        ref: ref['ref'],
-        ad_id: ref['ad_id'],
-        ads_context_data: ref['ads_context_data'],
-        product_id: ref['product_id']
-      }.compact
     }
   end
 

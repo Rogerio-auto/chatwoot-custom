@@ -169,24 +169,7 @@ class Messages::Instagram::BaseMessageBuilder < Messages::Messenger::MessageBuil
 
     params[:content_attributes][:external_echo] = true if @outgoing_echo
     params[:content_attributes][:is_unsupported] = true if message_is_unsupported?
-    params[:content_attributes].merge!(extract_instagram_referral)
     params
-  end
-
-  def extract_instagram_referral
-    ref = @messaging[:referral] || @messaging['referral']
-    return {} if ref.blank?
-
-    {
-      referral: {
-        source: ref[:source] || ref['source'],
-        type: ref[:type] || ref['type'],
-        ref: ref[:ref] || ref['ref'],
-        ad_id: ref[:ad_id] || ref['ad_id'],
-        ads_context_data: ref[:ads_context_data] || ref['ads_context_data'],
-        product_id: ref[:product_id] || ref['product_id']
-      }.compact
-    }
   end
 
   def message_already_exists?
