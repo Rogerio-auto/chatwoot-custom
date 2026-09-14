@@ -122,7 +122,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def resolved_contacts
     return @resolved_contacts if @resolved_contacts
 
-    @resolved_contacts = Current.account.contacts.visible_to(Current.user, Current.account).resolved_contacts(use_crm_v2: Current.account.feature_enabled?('crm_v2'))
+    visible_contacts = Current.account.contacts.visible_to(Current.user, Current.account)
+    @resolved_contacts = visible_contacts.resolved_contacts(use_crm_v2: Current.account.feature_enabled?('crm_v2'))
 
     @resolved_contacts = @resolved_contacts.tagged_with(params[:labels], any: true) if params[:labels].present?
     @resolved_contacts
