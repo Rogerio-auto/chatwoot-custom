@@ -219,6 +219,18 @@ RSpec.describe 'Contacts API', type: :request do
 
         expect(response).to have_http_status(:not_found)
       end
+
+      it 'does not leak other inbox contacts or their count through filter' do
+        payload = [{ attribute_key: 'email', filter_operator: 'contains', values: '@', query_operator: nil, attribute_model: 'standard' }]
+        post "/api/v1/accounts/#{account.id}/contacts/filter",
+             params: { payload: payload },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].pluck('email')).to contain_exactly(own_contact.email)
+        expect(response.parsed_body['meta']['count']).to eq(1)
+      end
     end
   end
 
@@ -583,6 +595,8 @@ RSpec.describe 'Contacts API', type: :request do
 
       it 'shows the contactable inboxes which the user has access to' do
         create(:inbox_member, user: agent, inbox: twilio_whatsapp_inbox)
+        # PATCH MAIAN: agente so acessa contato vinculado as proprias inboxes
+        create(:contact_inbox, contact: contact, inbox: twilio_whatsapp_inbox)
 
         inbox_service = double
         allow(Contacts::ContactableInboxesService).to receive(:new).and_return(inbox_service)
@@ -861,6 +875,10 @@ RSpec.describe 'Contacts API', type: :request do
     context 'when it is an authenticated user' do
       before do
         create(:contact, account: account)
+        # PATCH MAIAN: agente so acessa contato vinculado as proprias inboxes
+        agent_inbox = create(:inbox, account: account)
+        create(:inbox_member, user: agent, inbox: agent_inbox)
+        create(:contact_inbox, contact: contact, inbox: agent_inbox)
         contact.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
       end
 
